@@ -6,6 +6,7 @@
 require 'martile'
 require 'kramdown'
 require 'mindmapdoc'
+require 'html-to-css'
 
 
 class MindmapMFM
@@ -13,11 +14,31 @@ class MindmapMFM
   def initialize(s)
 
     @rawdoc = build_rawdoc(s)
+    @html = Kramdown::Document.new(@rawdoc).to_html
 
+  end  
+  
+  # Returns an HTML-to-CSS object
+  #
+  def to_htc()
+    HtmlToCss.new(@html)
   end
   
-  def to_html()
-    Kramdown::Document.new(@rawdoc).to_html
+  def to_html(cssfile: nil)
+    
+    html = if cssfile then
+    
+      doc = Rexle.new(@html)
+      link = Rexle::Element.new('link')
+      link.attributes.merge!(rel: 'stylesheet', href: cssfile)
+      doc.root.element('head/style').insert_after(link)
+      doc.xml(declaration: 'none')
+      
+    else
+      @html
+    end
+    
+    "<!DOCTYPE html>\n" + html
   end  
   
   private
@@ -35,7 +56,7 @@ head =<<EOF
       g.node {fill: #311}
       a {fill: #114; }
       svg g a:hover {background-color: #3ac; }
-      #doc {float: right; width: 50%; overflow-y: auto; height: 90%}
+      svg + div {float: right; width: 50%; overflow-y: auto; height: 70vh}
     </style>
   </head>
 EOF
@@ -44,15 +65,23 @@ EOF
     a = s.split(/(?=__DATA__)/,2)
     a2 = a.first.split(/(?=!s)/,2)
     svg = a2[1].lines.first
-    div = a2[1].lines[1..-1]
+    txtdoc = a2[1].lines[1..-1].join
 
+    divdoc = if txtdoc[0] != '<' then 
+      actual_txtdoc, below_txtdoc = txtdoc.split(/-{10,}/,2)
+      '<div markdown="1">' + actual_txtdoc \
+                    + "</div>\n<div style='clear: both'/>\n" + below_txtdoc
+    else
+      txtdoc
+    end
+                    
     html = [
       "<html>\n", 
       head, 
       "\n  <body markdown='1'>\n\n", 
       a2[0], 
       svg, 
-      "<div markdown='1' id='doc'>\n\n", div, "</div>\n</body>\n</html>\n\n", 
+      "\n\n", divdoc, "\n</body>\n</html>\n\n", 
       a.last
     ].join
 
@@ -61,4 +90,3 @@ EOF
   end
 
 end
-
