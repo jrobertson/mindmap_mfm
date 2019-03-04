@@ -10,9 +10,11 @@ require 'html-to-css'
 
 
 class MindmapMFM
+  using ColouredText
 
-  def initialize(s)
+  def initialize(s, debug: false)
 
+    @debug = debug
     @rawdoc = build_rawdoc(s)
     @html = Kramdown::Document.new(@rawdoc).to_html
 
@@ -63,29 +65,41 @@ EOF
     
     
     a = s.split(/(?=__DATA__)/,2)
-    a2 = a.first.split(/(?=!s)/,2)
-    svg = a2[1].lines.first
-    txtdoc = a2[1].lines[1..-1].join
-
-    divdoc = if txtdoc[0] != '<' then 
-      actual_txtdoc, below_txtdoc = txtdoc.split(/-{10,}/,2)
-      '<div markdown="1">' + actual_txtdoc \
-                    + "</div>\n<div style='clear: both'/>\n" + below_txtdoc
-    else
-      txtdoc
-    end
                     
-    html = [
-      "<html>\n", 
-      head, 
-      "\n  <body markdown='1'>\n\n", 
-      a2[0], 
-      svg, 
-      "\n\n", divdoc, "\n</body>\n</html>\n\n", 
-      a.last
-    ].join
+    body = if a.length > 1 then
+                    
+      a2 = a.first.split(/(?=!s)/,2)
+      svg = a2[1].lines.first
+      txtdoc = a2[1].lines[1..-1].join
 
-    Martile.new(html).to_s
+      divdoc = if txtdoc[0] != '<' then 
+        actual_txtdoc, below_txtdoc = txtdoc.split(/-{10,}/,2)
+        '<div markdown="1">' + actual_txtdoc \
+                      + "</div>\n<div style='clear: both'/>\n" + below_txtdoc
+      else
+        txtdoc
+      end
+                      
+      [
+        a2[0], 
+        svg, 
+        "\n\n", divdoc, 
+        ].join
+
+    else
+      s
+    end
+    puts ('body: ' + body.inspect).debug if @debug
+      html = [
+        "<html>\n", 
+        head, 
+        "\n  <body markdown='1'>\n\n", 
+        body, "\n</body>\n</html>\n\n"
+      ]                    
+      html << a.last if a.length > 1
+                    
+    puts ('html: ' + html.inspect) if @debug
+    Martile.new(html.join, debug: @debug).to_s
 
   end
 
