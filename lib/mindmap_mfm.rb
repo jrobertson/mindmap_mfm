@@ -12,12 +12,10 @@ require 'html-to-css'
 class MindmapMFM
   using ColouredText
 
-  def initialize(s, debug: false)
+  def initialize(s, cssfile: nil, debug: false, footer: '')
 
-    @debug = debug
-    @rawdoc = build_rawdoc(s)
-    @html = Kramdown::Document.new(@rawdoc).to_html
-
+    @s, @cssfile, @footer, @debug = s, cssfile, footer, debug
+    puts ('footer: ' + @footer.inspect).debug if debug
   end  
   
   # Returns an HTML-to-CSS object
@@ -26,14 +24,23 @@ class MindmapMFM
     HtmlToCss.new(@html)
   end
   
-  def to_html(cssfile: nil)
+  def to_html()
     
-    html = if cssfile then
+    if @debug then
+      puts 'MindmapMFM | inside to_html()'.info
+      puts ('@s: ' + @s.inspect).debug
+    end
+    
+    @rawdoc = build_rawdoc(@s)
+    @html = Kramdown::Document.new(
+      @rawdoc.gsub(/\b'\b/,"{::nomarkdown}'{:/}")).to_html    
+    
+    html = if @cssfile and @cssfile.length > 1 then
     
       doc = Rexle.new(@html)
       link = Rexle::Element.new('link')
-      link.attributes.merge!(rel: 'stylesheet', href: cssfile)
-      doc.root.element('head/style').insert_after(link)
+      link.attributes.merge!(rel: 'stylesheet', href: @cssfile)
+      doc.root.element('head').add(link)
       doc.xml(declaration: 'none')
       
     else
@@ -46,9 +53,9 @@ class MindmapMFM
   private
 
   def build_rawdoc(s)
-    
-head =<<EOF
-  <head>
+
+
+css=<<EOF
     <style>
       h2 {background-color: #ee2;}
       svg  {fill: #3ac;}
@@ -60,6 +67,11 @@ head =<<EOF
       svg g a:hover {background-color: #3ac; }
       svg + div {float: right; width: 50%; overflow-y: auto; height: 70vh}
     </style>
+EOF
+                    
+head =<<EOF
+  <head>
+    #{css unless @cssfile}
   </head>
 EOF
     
@@ -89,17 +101,24 @@ EOF
     else
       s
     end
-    puts ('body: ' + body.inspect).debug if @debug
-      html = [
-        "<html>\n", 
-        head, 
-        "\n  <body markdown='1'>\n\n", 
-        body, "\n</body>\n</html>\n\n"
-      ]                    
-      html << a.last if a.length > 1
                     
-    puts ('html: ' + html.inspect) if @debug
-    Martile.new(html.join, debug: @debug).to_s
+    puts ('body: ' + body.inspect).debug if @debug
+                    
+
+    r = Martile.new(body, debug: false).to_s
+    puts ('r: ' + r.inspect).debug if @debug
+
+    html = [
+      "<html>\n", 
+      head, 
+      "\n  <body markdown='1'>\n\n", 
+      r,
+      "<div id='footer'>",@footer, "</div>",
+      "\n</body>\n</html>\n\n"
+    ]    
+                    
+    html << a.last if a.length > 1
+    html.join                
 
   end
 

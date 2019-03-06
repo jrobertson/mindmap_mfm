@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name = 'mindmap_mfm'
-  s.version = '0.3.0'
+  s.version = '0.3.1'
   s.summary = 'Generates HTML with an embedded SVG hyperlinked ' + 
       'mindmap along with associated anchored headings.'
   s.authors = ['James Robertson']
